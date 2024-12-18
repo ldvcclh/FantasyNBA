@@ -6,12 +6,18 @@ import time
 import socket
 import os
 import pickle
+import re
 
 class BbrefScraper:
     def __init__(self, season_start_links, scrape_type):
         self.scrape_type = scrape_type
         self.season_start_links = season_start_links
         self.base_url = 'https://www.basketball-reference.com'
+
+        if len(self.season_start_links)==1:
+            match = re.search(r'\d+', self.season_start_links[0])
+            if match:
+                self.year = int(match.group())
 
         computer_name = socket.gethostname()
 
@@ -46,20 +52,30 @@ class BbrefScraper:
         print("START get the url for each month in the season")
         self.get_game_links()
         print("get the game links for each game within each month DONE")
-        # print(self.full_game_urls)
+        #print(self.full_game_urls)
 
         #scrape each table in each game and save to dataframe
         self.get_game_stats()
 
     def get_game_stats(self):
-        # self.full_game_urls = pickle.load(open(f'{self.data_path}/pickles/GameLinks.p', 'rb'))
+        self.full_game_urls = pickle.load(open(f'{self.data_path}/pickles/GameLinks_{self.year}.p', 'rb'))
+
+        api_key = '73437f694b4cb48238165dedef05535d'
         for season, game_links in self.full_game_urls.items():
             pieces = []
             pbar = tqdm(game_links, desc = f'Scraping Games: {season}')
             # total = 0
             for link in pbar:
-                response = requests.get(link)
-                soup = BeautifulSoup(response.text, 'html.parser')
+                print('Game Link',link)
+                scraper_api_url = f"https://api.scraperapi.com/?api_key={api_key}&url={link}"
+                response = requests.get(scraper_api_url)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    time.sleep(1)
+                else:
+                    print(f"Failed to load page: {response.status_code}")
+                    return
+                #soup = BeautifulSoup(response.text, 'html.parser')
                 table_df = self.get_table_info(soup, link)
                 pieces.append(table_df)
                 # total += 1
@@ -74,23 +90,28 @@ class BbrefScraper:
         # column_2 = ['TS%', 'eFG%',
         #            'FTr', 'ORB%', 'DRB%', 'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'ORtg', 'DRtg', 'BPM']
         header = soup.findAll('h1')[0].text.split(',')
+        #print("header",header)
         date = ''.join(header[-2:]).strip()
         teams = header[0].split('at')
+        #print('TEAMS',teams)
         # away_team = teams[0].strip()
         # home_team = teams[1][:teams[1].find('Box Score')].strip()
         away_team = teams[0].strip()
         home_team = teams[-1][:teams[-1].find('Box Score')].strip()
+        #print("away",away_team)
+        #print("home", home_team)
         if home_team == '':
             home_team = teams[-2][:teams[-2].find('Box Score')].strip()
+            #print("home v2", home_team)
         tables = soup.findAll('tbody')
         #get unqiue players
         player_dict = {}
         away_idx = [0]
         home_idx = [8]
         for idx, table in enumerate(tables):
-            # print(idx)
-            # print(table)
-            # print('~'*50)
+            #print("idx",idx)
+            #print("table",table)
+            #print('~'*50)
             if idx not in away_idx + home_idx:
                 continue
             if idx in away_idx:
@@ -107,6 +128,9 @@ class BbrefScraper:
                     if name == 'Reserves':
                         continue
                     player_dict[name] = [name, date, team, opp, home]
+                    #print("Player", player_dict[name])
+                    #print("ID",id)
+                    #print("row",row)
                 except AttributeError:
                     continue
         for idx, table in enumerate(tables):
@@ -121,12 +145,15 @@ class BbrefScraper:
                     cols = [i.text.strip() for i in cols]
                     for c in cols:
                         player_dict[name].append(c)
+                    #print("Player v2", player_dict[name])
                 except AttributeError:
                     continue
         game_df_pieces = []
         for name, l in player_dict.items():
+            #print("Name, l",name,l)
             row_dict = {col:value for col, value in zip(columns, l)}
             row_df = pd.DataFrame(row_dict, index = [0])
+            #print("row df",row_df)
             game_df_pieces.append(row_df)
         game_df = pd.concat(game_df_pieces)
         game_df['GameLink'] = [link for i in range(len(game_df))]
@@ -142,8 +169,17 @@ class BbrefScraper:
             season_game_urls = []
             for month_url in month_url_list:
                 print("MONTH URL",month_url)
+                #payload = {'api_key': '73437f694b4cb48238165dedef05535d',
+                #           'url': month_url}
+                #response = requests.get('https://api.scraperapi.com/', params=payload)
                 response = requests.get(month_url)
-                soup = BeautifulSoup(response.text, 'html.parser')
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    time.sleep(1)
+                else:
+                    print(f"Failed to load page: {response.status_code}")
+                    return
+                #soup = BeautifulSoup(response.text, 'html.parser')
                 time.sleep(1)
                 table = soup.findAll('tbody')
                 # print(table)
@@ -158,7 +194,7 @@ class BbrefScraper:
 
             self.full_game_urls[season] = season_game_urls
         pbar.close()
-        # pickle.dump(self.full_game_urls, open(f'{self.data_path}/pickles/GameLinks.p', 'wb'))
+        pickle.dump(self.full_game_urls, open(f'{self.data_path}/pickles/GameLinks_{self.year}.p', 'wb'))
         del self.month_url_dict
 
     def get_months(self):
@@ -171,21 +207,31 @@ class BbrefScraper:
         elif self.scrape_type == 3:
             months = ['october-2019', 'november', 'december', 'january', 'february', 'march', 'july', 'august', 'september', 'october-2020']
         elif self.scrape_type == 4:
-            months = ['december', 'january', 'february', 'march']
+            months = ['october', 'november','december', 'january', 'february', 'march']
         self.month_url_dict = {}
+
         for season_start_link in self.season_start_links:
             print("Link",season_start_link)
-            response = requests.get(season_start_link)
-            soup = BeautifulSoup(response.text, 'html.parser')
+            payload = {'api_key': '73437f694b4cb48238165dedef05535d',
+                       'url': season_start_link}
+            response = requests.get('https://api.scraperapi.com/', params=payload)
+            #response = requests.get(season_start_link)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+            else:
+                print(f"Failed to load page: {response.status_code}")
+                return
+            #soup = BeautifulSoup(response.text, 'html.parser')
+            print("H1",soup.find('h1'))
             season = soup.find('h1').text.strip().split(' ')[0]#.strip()
-            print(soup)
+            #print(soup)
             print("Season",season)
             if os.path.exists(f'{self.data_path}/bbref-files/{season}.csv'):
                 continue
-            year = f'20{season[season.find("-")+1:]}'
+            self.year = f'20{season[season.find("-")+1:]}'
             season_month_list = []
             for month in months:
-                base_url = f'https://www.basketball-reference.com/leagues/NBA_{year}_games-{month}.html'
+                base_url = f'https://www.basketball-reference.com/leagues/NBA_{self.year}_games-{month}.html'
                 season_month_list.append(base_url)
             self.month_url_dict[season] = season_month_list
         # print(self.month_url_dict[season])
@@ -229,7 +275,7 @@ if __name__ == '__main__':
         # nba_stat_scraper.scrape_stats()
 
     season_list = [
-       'https://www.basketball-reference.com/leagues/NBA_2023_games.html'
+       'https://www.basketball-reference.com/leagues/NBA_2022_games.html'
     ]
 
     nba_stat_scraper = BbrefScraper(season_list, scrape_type = 4)
