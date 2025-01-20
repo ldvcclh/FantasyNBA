@@ -15,3 +15,5 @@ __pycache__/
 
 # Ignorer les fichiers de log
 *.log
+/fnba
+/fnba.pub
