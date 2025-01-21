@@ -6,7 +6,6 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, root_mean_squared_error
 
-
 class Model:
     def __init__(self, features, output, log=False):
         """
