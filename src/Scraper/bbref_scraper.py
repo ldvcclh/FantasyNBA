@@ -13,7 +13,7 @@ class BbrefScraper:
         self.scrape_type = scrape_type
         self.season_start_links = season_start_links
         self.base_url = 'https://www.basketball-reference.com'
-
+        self.api_key = None
         if len(self.season_start_links)==1:
             match = re.search(r'\d+', self.season_start_links[0])
             if match:
@@ -60,14 +60,13 @@ class BbrefScraper:
     def get_game_stats(self):
         self.full_game_urls = pickle.load(open(f'{self.data_path}/pickles/GameLinks_{self.year}.p', 'rb'))
 
-        api_key = '73437f694b4cb48238165dedef05535d'
         for season, game_links in self.full_game_urls.items():
             pieces = []
             pbar = tqdm(game_links, desc = f'Scraping Games: {season}')
             # total = 0
             for link in pbar:
                 print('Game Link',link)
-                scraper_api_url = f"https://api.scraperapi.com/?api_key={api_key}&url={link}"
+                scraper_api_url = f"https://api.scraperapi.com/?api_key={self.api_key}&url={link}"
                 response = requests.get(scraper_api_url)
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'html.parser')
@@ -168,10 +167,6 @@ class BbrefScraper:
             pbar.set_description(f'({idx+1}-{len(self.month_url_dict)}) | Getting Game URLs: {season}')
             season_game_urls = []
             for month_url in month_url_list:
-                print("MONTH URL",month_url)
-                #payload = {'api_key': '73437f694b4cb48238165dedef05535d',
-                #           'url': month_url}
-                #response = requests.get('https://api.scraperapi.com/', params=payload)
                 response = requests.get(month_url)
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'html.parser')
@@ -212,7 +207,7 @@ class BbrefScraper:
 
         for season_start_link in self.season_start_links:
             print("Link",season_start_link)
-            payload = {'api_key': '73437f694b4cb48238165dedef05535d',
+            payload = {'api_key': self.api_key,
                        'url': season_start_link}
             response = requests.get('https://api.scraperapi.com/', params=payload)
             #response = requests.get(season_start_link)

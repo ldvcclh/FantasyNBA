@@ -17,3 +17,4 @@ __pycache__/
 *.log
 /fnba
 /fnba.pub
+/api_key.txt
