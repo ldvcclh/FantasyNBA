@@ -1,3 +1,5 @@
+from Models.models import Model
+
 def compute_fantasy_score(df):
     """
     WINAMAX fantasy score (miss for now +/- : point marqué/encaissé par l'équipe lorsque le joueur est sur le terrain)
@@ -63,3 +65,57 @@ def get_averages(df, num_games,col):
         player_df[f'{num_games}_{c}'] = player_df[c].rolling(window=num_games, min_periods=num_games).mean()
 
     return player_df
+
+
+def fill_players_dict(df, players, col, num_games, model_type):
+    """
+    Create a dictionary of a list of players with average statistics (col) of n number of games (num_games)
+    :param df: Season DataFrame
+    :param players: list of players
+    :param col: statistics taken into account in the model
+    :param num_games: number of games to compute average statistics
+    :param model_type: type of model
+    :return: dictionary of players with models and samples
+    """
+    from tqdm import tqdm
+
+    # Init players dictionary
+    players_dict = {}
+
+    # Loop over players
+    pbar = tqdm(players)  # , desc = 'Computing average and building model..')
+    for player in pbar:
+        # Extract player data and get averages statistics
+        pbar.set_description(f'Computing average and building model: {player}')
+        player_df = df[df['Player'] == player].sort_values(by='Date', ascending=False).copy()
+        # print("Shape",player_df.shape[0])
+        if player_df.shape[0] > num_games + 1:
+            player_df = get_averages(player_df, num_games, col)
+            player_df = player_df.dropna()
+
+            # Features and output
+            x_col = [f'{num_games}_{i}' for i in col]
+            X = player_df[[i for i in x_col]]
+            y = player_df[['FP']]
+
+            # Init class
+            player_model = Model(X, y)
+
+            # Divide data
+            player_model.create_train_test_split(test_size=0.3)
+
+            # Construct and train model
+            player_model.build_model(model_type)
+            player_model.train_model()
+
+            # Evaluate
+            metrics = player_model.evaluate_model()
+
+            players_dict[player] = {"model": player_model,
+                                    "points": {"x_train": player_model.x_train, "x_test": player_model.x_test,
+                                               "y_train": player_model.y_train, "y_test": player_model.y_test,
+                                               "y_pred": player_model.y_pred},
+                                    "metrics": metrics
+                                    }
+
+    return players_dict
