@@ -5,12 +5,13 @@ import pandas as pd
 from itertools import chain
 
 class Visualization:
-    def __init__(self,models_results, model_str):
+    def __init__(self,models_results, model_str,df):
         """
         Initialize the Visualization class.
         """
         self.model_str = model_str
         self.models_results = models_results
+        self.df = df
 
     def plot_predicted_vs_actual(self,player_name=None, threshold=5):
         """
@@ -86,21 +87,82 @@ class Visualization:
         plt.grid()
         plt.show()
 
-    def plot_model_comparison(self, models_metrics, metric_name):
-        """
-        Compare models based on a specific metric.
+    #def plot_model_comparison(self, models_metrics, metric_name):
+    #    """
+    #    Compare models based on a specific metric.
+#
+    #    Args:
+    #    - models_metrics (dict): Dictionary where keys are model names and values are metrics (e.g., RMSE, R2).
+    #    - metric_name (str): The name of the metric to display.
+    #    """
+    #    plt.figure(figsize=(10, 6))
+    #    model_names = list(models_metrics.keys())
+    #    metric_values = list(models_metrics.values())
+#
+    #    sns.barplot(x=model_names, y=metric_values)
+    #    plt.xlabel('Models')
+    #    plt.ylabel(metric_name)
+    #    plt.title(f'Model Comparison based on {metric_name}')
+    #    plt.grid()
+    #    plt.show()
 
-        Args:
-        - models_metrics (dict): Dictionary where keys are model names and values are metrics (e.g., RMSE, R2).
-        - metric_name (str): The name of the metric to display.
+    def plot_ann_loss(self,player_name=None):
         """
+        Plot the loss and validation loss curves for ANN models (MSE and MAE).
+        """
+        #if player_name is None:
+        #    raise ValueError("No player chosen. Choose a player first.")
+        for player in player_name:
+            history = self.models_results[player]['history']
+            history = history.history
+            plt.figure(figsize=(12, 3))
+            # MAE
+            plt.subplot(1, 2, 1)
+            plt.plot(history['mae'], label='Train', color='blue')
+            plt.plot(history['val_mae'], label='Test', color='orange')
+            plt.xlabel('Epochs')
+            plt.ylabel('MAE')
+            plt.title('Loss/Validation' + self.model_str + ' - ' + player)
+            plt.legend()
+            # MSE
+            plt.subplot(1, 2, 2)
+            plt.plot(history['mse'], label='Train', color='blue')
+            plt.plot(history['val_mse'], label='Test', color='orange')
+            plt.xlabel('Epochs')
+            plt.ylabel('MSE')
+            #plt.title('MSE over Epochs')
+            plt.legend()
+            plt.show()
+
+    def plot_player_stats(self, player, type='FP'):
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        """
+        Plot any statistiques of a player during a season
+
+        Paramètres :
+        - df : season DataFrame
+        - player : Player name 
+        """
+        # Filter
+        df_player = self.df[self.df['Player'] == player]
+        if df_player.empty:
+            print(f"No data found for this player : {player}")
+            return
+
+        # Plot
         plt.figure(figsize=(10, 6))
-        model_names = list(models_metrics.keys())
-        metric_values = list(models_metrics.values())
+        sns.lineplot(
+            data=df_player,
+            x='Date',
+            y=type,
+            marker='o',
+            color='b'
+        )
 
-        sns.barplot(x=model_names, y=metric_values)
-        plt.xlabel('Models')
-        plt.ylabel(metric_name)
-        plt.title(f'Model Comparison based on {metric_name}')
-        plt.grid()
+        plt.title(f"{player} performance")
+        plt.xlabel('Date')
+        plt.ylabel(type)
+        plt.xticks(rotation=45)
+        plt.grid(True)
         plt.show()
