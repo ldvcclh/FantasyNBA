@@ -67,7 +67,7 @@ def get_averages(df, num_games,col):
     return player_df
 
 
-def fill_players_dict(df, players, col, num_games, model_type):
+def fill_players_dict(df, players, col, num_games, model_type,**kwargs):
     """
     Create a dictionary of a list of players with average statistics (col) of n number of games (num_games)
     :param df: Season DataFrame
@@ -83,11 +83,12 @@ def fill_players_dict(df, players, col, num_games, model_type):
     players_dict = {}
 
     # Loop over players
-    pbar = tqdm(players)  # , desc = 'Computing average and building model..')
+    pbar = tqdm(players)
     for player in pbar:
         # Extract player data and get averages statistics
         pbar.set_description(f'Computing average and building model: {player}')
         player_df = df[df['Player'] == player].sort_values(by='Date', ascending=False).copy()
+        player_df = player_df[player_df.FP != 0]
         # print("Shape",player_df.shape[0])
         if player_df.shape[0] > num_games + 1:
             player_df = get_averages(player_df, num_games, col)
@@ -105,13 +106,13 @@ def fill_players_dict(df, players, col, num_games, model_type):
             player_model.create_train_test_split(test_size=0.3)
 
             # Construct and train model
-            player_model.build_model(model_type)
-            player_model.train_model()
+            player_model.build_model(model_type,**kwargs)
+            player_model.train_model(**kwargs)
 
             # Evaluate
             metrics = player_model.evaluate_model()
 
-            players_dict[player] = {"model": player_model,
+            players_dict[player] = {"model": player_model,"history":player_model.history,
                                     "points": {"x_train": player_model.x_train, "x_test": player_model.x_test,
                                                "y_train": player_model.y_train, "y_test": player_model.y_test,
                                                "y_pred": player_model.y_pred},
