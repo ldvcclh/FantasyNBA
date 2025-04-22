@@ -1,9 +1,22 @@
-Optimization of NBA teams for fantasy league
+# 🏀 NBA Fantasy Team Optimizer
 
-- Automatic data scraping (via scraperAPI)
-- Exploration and analysis of dataset
-- Feature Engineering (in progress)
-- Model comparison (in progress)
+**A machine learning project to predict NBA player performance and optimize fantasy lineups under constraints.**
 
-NEXT STEP
-Optimization to find the best teams (under constraints: budget, players position)
+**Objective**: Automatically build the best NBA fantasy teams using advanced player stats, predictive modeling, and optimization algorithms.
+
+---
+
+## 🔍 Current Features
+
+- Automatic data scraping (via [ScraperAPI](https://www.scraperapi.com/))  
+- Dataset exploration and analysis  
+- Feature engineering *(in progress)*  
+- Model comparison *(in progress)*  
+
+---
+
+## What's Next?
+
+- **Optimization module** to build optimal teams under constraints:  
+  - Budget  
+  - Player positions   
